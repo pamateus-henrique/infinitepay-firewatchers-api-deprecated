@@ -1,39 +1,27 @@
 package controllers
 
 import (
-	"fmt"
-
-	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/pamateus-henrique/infinitepay-firewatchers-api/app/models"
+	"github.com/pamateus-henrique/infinitepay-firewatchers-api/app/services"
 	"github.com/pamateus-henrique/infinitepay-firewatchers-api/pkg/utils"
-	"github.com/pamateus-henrique/infinitepay-firewatchers-api/plataform/database"
 )
 
 
-func Test(c *fiber.Ctx) error {
-
-	db, err := database.OpenDBConnection()
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	user, err := db.GetUserByEmail("mateus@gmail.com")
-
-	fmt.Println(user)
-
-	return c.JSON(fiber.Map{
-		"error": false,
-		"msg": nil,
-	})
+type AuthController struct {
+	UserService *services.UserService
 }
 
-func Register(c *fiber.Ctx) error {
+
+func NewAuthController (UserService *services.UserService) *AuthController {
+	return &AuthController{
+		UserService: UserService,
+	}
+}
+
+func (ac *AuthController) Register(c *fiber.Ctx) error {
 
 	authModel := models.Register{}
-	userModel := models.User{}
-	validate := validator.New()
 
 	if err := c.BodyParser(&authModel); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -42,38 +30,23 @@ func Register(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := validate.Struct(authModel); err != nil {
+	if err := ac.UserService.ValidateRegisterModel(&authModel); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": true,
 			"msg": err.Error(),
 		})
 	}
 
-	userModel.Name = authModel.Name
-	userModel.Email = authModel.Email
-	userModel.Password = utils.GeneratePassword(authModel.Password)
-	userModel.Avatar_url = "abc"
-	userModel.Role = "Viewer"
-	userModel.Team = "None"
+	userModel := ac.UserService.CreateUserModel(&authModel)	
 
-
-	if err := validate.Struct(userModel); err != nil {
+	if err := ac.UserService.ValidateUserModel(userModel); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": true,
 			"msg": err.Error(),
 		})
 	}
 
-	db, err := database.OpenDBConnection()
-
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"message": err.Error(),
-		})
-	}
-
-	if err := db.CreateUser(&userModel); err != nil {
+	if err := ac.UserService.CreateUser(userModel); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": true,
 			"message": err.Error(),
@@ -84,4 +57,48 @@ func Register(c *fiber.Ctx) error {
 			"error": false,
 			"message": "User has been created",
 		})
+}
+
+
+func (ac *AuthController) Login(c *fiber.Ctx) error {
+	
+	authModel := models.Login{}
+	
+	if err := c.BodyParser(&authModel); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": true,
+			"msg": nil,
+		})
+	}
+
+	if err := ac.UserService.ValidateLoginModel(&authModel); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": true,
+			"msg": nil,
+		})
+	}
+
+	user, err := ac.UserService.GetUserByEmail(authModel.Email)
+
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": true,
+			"msg": "No user with this email/password",
+		})
+	}
+
+	if err := utils.ComparePassword(authModel.Password, user.Password); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": true,
+			"msg": "No user with this email/password",
+		})
+	}
+
+	
+
+
+
+
+
+	return nil
 }
