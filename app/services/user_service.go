@@ -48,14 +48,14 @@ func (us *UserService) GetUserByEmail(email string) (*models.User, error) {
 
 func (us *UserService) CreateUserModel(registerModel *models.Register) *models.User {
 	
-	userModel := models.User{}
-
-	userModel.Name = registerModel.Name
-	userModel.Email = registerModel.Email
-	userModel.Password = utils.GeneratePassword(registerModel.Password)
-	userModel.Avatar_url = "abc"
-	userModel.Role = "Viewer"
-	userModel.Team = "None"
+	userModel := models.User{
+		Name: registerModel.Name,
+		Email: registerModel.Email,
+		Password: utils.GeneratePassword(registerModel.Password),
+		Avatar_url: "abc",
+		Role: "Viewer",
+		Team: "None",
+	}
 
 	return &userModel
 }

@@ -19,4 +19,5 @@ func PublicRoutes(a *fiber.App, db *sqlx.DB){
 	authController := controllers.NewAuthController(authService)
 
 	route.Post("/register", authController.Register)
+	route.Post("/login", authController.Login)
 }

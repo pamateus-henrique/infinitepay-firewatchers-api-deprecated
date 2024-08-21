@@ -24,33 +24,21 @@ func (ac *AuthController) Register(c *fiber.Ctx) error {
 	authModel := models.Register{}
 
 	if err := c.BodyParser(&authModel); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg": nil,
-		})
+		return fiber.NewError(fiber.StatusBadRequest)
 	}
 
 	if err := ac.UserService.ValidateRegisterModel(&authModel); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg": err.Error(),
-		})
+		return fiber.NewError(fiber.StatusBadRequest)
 	}
 
 	userModel := ac.UserService.CreateUserModel(&authModel)	
 
 	if err := ac.UserService.ValidateUserModel(userModel); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg": err.Error(),
-		})
+		return fiber.NewError(fiber.StatusBadRequest)
 	}
 
 	if err := ac.UserService.CreateUser(userModel); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": true,
-			"message": err.Error(),
-		})
+		return fiber.NewError(fiber.StatusInternalServerError)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
@@ -65,40 +53,38 @@ func (ac *AuthController) Login(c *fiber.Ctx) error {
 	authModel := models.Login{}
 	
 	if err := c.BodyParser(&authModel); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg": nil,
-		})
+		return fiber.NewError(fiber.StatusBadRequest)
 	}
 
 	if err := ac.UserService.ValidateLoginModel(&authModel); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg": nil,
-		})
+		return fiber.NewError(fiber.StatusBadRequest)
 	}
 
 	user, err := ac.UserService.GetUserByEmail(authModel.Email)
 
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg": "No user with this email/password",
-		})
+		return fiber.NewError(fiber.StatusBadRequest, "No user found with this email/password")
 	}
 
 	if err := utils.ComparePassword(authModel.Password, user.Password); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": true,
-			"msg": "No user with this email/password",
-		})
+		return fiber.NewError(fiber.StatusBadRequest, "No user found with this email/password")
 	}
 
-	
+	 jwt, err := utils.GenerateJWT(user.Name)
 
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError)
+	}
 
+	 // Create cookie
+	 cookie := new(fiber.Cookie)
+	 cookie.Name = "auth"
+	 cookie.Value = jwt
+	 cookie.HTTPOnly = true
+	 c.Cookie(cookie)
 
-
-
-	return nil
+	 return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"error": false,
+		"msg": "Login successful",
+	})
 }

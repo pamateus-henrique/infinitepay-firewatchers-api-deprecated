@@ -21,8 +21,7 @@ func CreateUserQueries(db *sqlx.DB) *UserQueries {
 
 func (q *UserQueries) GetUserByEmail(email string) (*models.User, error){
 	user := models.User{}
-
-	query := `SELECT * FROM users where email = $1`
+	query := `SELECT name, email, password, team, role, avatar_url FROM users where email = $1`
 
 	if err := q.db.Get(&user, query, email); err != nil {
 		fmt.Println(err)
